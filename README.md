@@ -26,6 +26,10 @@ These parts assume the use of a [shell case](#shell-case) I designed.
 - [Phillips head pan head screw M2x10mm](https://aliexpress.com/item/1005002364189187.html) * for Shell Case
 - PSP AC Adapter (Official versions are recommended)
 
+### Upload Control Sketch
+
+Use the Arduino IDE to upload psp-1000-control.ino to the M5Stamp S3A.
+
 ## PCB
 
 It is possible to create circuit boards using services such as JLCPCB and PCBWAY by utilizing the data in the [./pcb](./pcb) folder.  
@@ -33,7 +37,7 @@ It is possible to create circuit boards using services such as JLCPCB and PCBWAY
 ### BOM
 | **Reference** | **Part** | **Link** |
 |---------|------|------|
-|U1 | M5Stamp S3A (1.27mm Pitch ) | - |
+|U1 | M5Stamp S3A (1.27mm Pitch Header Pins) | - |
 |U2 | MCP23017 (SOIC-28) | - |
 |U3 | AD5142 (TSSOP-16) | - |
 |C1, C5, C7 | 10 uF capacitor (1206) | - |
