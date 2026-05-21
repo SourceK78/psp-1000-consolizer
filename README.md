@@ -28,7 +28,7 @@ These parts assume the use of a [shell case](#shell-case) I designed.
 
 ### Upload Control Sketch
 
-Use the Arduino IDE to upload psp-1000-control.ino to the M5Stamp S3A.
+Use the Arduino IDE to upload [psp-1000-control.ino](./psp-1000-control/) to the M5Stamp S3A.
 
 ## PCB
 
