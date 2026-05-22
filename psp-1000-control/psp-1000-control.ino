@@ -132,7 +132,39 @@ const char* const controllerTypeStrings[PSCTRL_MAX + 1] PROGMEM = {
 PsxControllerBitBang<PIN_PS2_ATT, PIN_PS2_CMD, PIN_PS2_DAT, PIN_PS2_CLK> psx;
 
 boolean haveController = false;
-bool analogDpadEnabled = false;
+
+enum RightAnalogMode : uint8_t {
+	RIGHT_ANALOG_MODE_OFF = 0,
+	RIGHT_ANALOG_MODE_DPAD = 1,
+	RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD = 2
+};
+
+RightAnalogMode rightAnalogMode = RIGHT_ANALOG_MODE_OFF;
+
+void updateModeLed() {
+	// !powerState: mode-based color
+	// powerState : blue fixed
+	if (!powerState) {
+		// OFF: red, Mode2(D-Pad): green, Mode3(Face swap): magenta
+		if (rightAnalogMode == RIGHT_ANALOG_MODE_DPAD) {
+			analogWrite(LED_R, 0);
+			analogWrite(LED_G, 64);
+			analogWrite(LED_B, 0);
+		} else if (rightAnalogMode == RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD) {
+			analogWrite(LED_R, 64);
+			analogWrite(LED_G, 0);
+			analogWrite(LED_B, 64);
+		} else {
+			analogWrite(LED_R, 0);
+			analogWrite(LED_G, 0);
+			analogWrite(LED_B, 64);
+		}
+	} else {
+		analogWrite(LED_R, 64);
+		analogWrite(LED_G, 0);
+		analogWrite(LED_B, 0);
+	}
+}
 
 
 
@@ -275,9 +307,7 @@ void setup () {
 	writePot(0, 255);
 	writePot(1, 255);
 
-	analogWrite(LED_R, 64);
-	analogWrite(LED_G, 0);
-	analogWrite(LED_B, 0);
+	updateModeLed();
 }
 
 void loop () {
@@ -338,31 +368,24 @@ void loop () {
 			bool btnR3    = rawButtons & (1 << 2);  // R3
 			bool btnStart = rawButtons & (1 << 3);  // Start
 			bool btnRight = rawButtons & (1 << 5);  // Right
-			bool homePress        = btnStart && btnRight;  // START+RIGHT → HOME
-			bool analogToggleCombo = btnStart && btnR3;    // START+R3 → toggle analog D-pad
+			bool homePress         = btnStart && btnRight;  // START+RIGHT → HOME
+			bool modeToggleCombo   = btnStart && btnR3;     // START+R3 → mode toggle
 
-			// Toggle analog D-pad on rising edge of START+R3
-			static bool lastAnalogToggle = false;
-			if (analogToggleCombo && !lastAnalogToggle) {
-				analogDpadEnabled = !analogDpadEnabled;
+			// Toggle mode on rising edge of START+R3:
+			// OFF -> Right analog: D-Pad -> Right analog: Face + Face: D-Pad -> OFF
+			static bool lastModeToggle = false;
+			if (!powerState && modeToggleCombo && !lastModeToggle) {
+				rightAnalogMode = static_cast<RightAnalogMode>((rightAnalogMode + 1) % 3);
+				updateModeLed();
 			}
-			lastAnalogToggle = analogToggleCombo;
-
-			// Build direction bits from right analog stick
-			PsxButtons analogBits = 0;
-			if (analogDpadEnabled) {
-				if (ry < ANALOG_CENTER - ANALOG_DEADZONE) analogBits |= (1 << 4); // UP
-				if (rx > ANALOG_CENTER + ANALOG_DEADZONE) analogBits |= (1 << 5); // RIGHT
-				if (ry > ANALOG_CENTER + ANALOG_DEADZONE) analogBits |= (1 << 6); // DOWN
-				if (rx < ANALOG_CENTER - ANALOG_DEADZONE) analogBits |= (1 << 7); // LEFT
-			}
+			lastModeToggle = modeToggleCombo;
 
 			// Build filtered buttons for MCP23017:
 			// L2/R2 are removed from default pass-through (handled specially below)
 			PsxButtons filteredButtons = rawButtons & ~((1 << 8) | (1 << 9));
 
-			// Remove Start when used as modifier key (HOME, VOL+, VOL-, analog toggle)
-			if (homePress || analogToggleCombo || (btnStart && (btnL2 || btnR2))) {
+			// Remove Start when used as modifier key (HOME, VOL+, VOL-, mode toggle)
+			if (homePress || modeToggleCombo || (btnStart && (btnL2 || btnR2))) {
 				filteredButtons &= ~(1 << 3);
 			}
 
@@ -371,8 +394,8 @@ void loop () {
 				filteredButtons &= ~(1 << 5);
 			}
 
-			// START+R3 → analog toggle: also suppress R3 button
-			if (analogToggleCombo) {
+			// START+R3 → mode toggle: also suppress R3 button
+			if (modeToggleCombo) {
 				filteredButtons &= ~(1 << 2);
 			}
 
@@ -380,7 +403,45 @@ void loop () {
 			if (btnStart && btnL2) filteredButtons |= (1 << 8);
 			if (btnStart && btnR2) filteredButtons |= (1 << 9);
 
-			filteredButtons |= analogBits;
+			// Apply right analog remap modes
+			// D-Pad bits: UP=4 RIGHT=5 DOWN=6 LEFT=7
+			// Face bits : TRI=12 CIRCLE=13 CROSS=14 SQUARE=15
+			PsxButtons rightToDpadBits = 0;
+			if (ry < ANALOG_CENTER - ANALOG_DEADZONE) rightToDpadBits |= (1 << 4); // UP
+			if (rx > ANALOG_CENTER + ANALOG_DEADZONE) rightToDpadBits |= (1 << 5); // RIGHT
+			if (ry > ANALOG_CENTER + ANALOG_DEADZONE) rightToDpadBits |= (1 << 6); // DOWN
+			if (rx < ANALOG_CENTER - ANALOG_DEADZONE) rightToDpadBits |= (1 << 7); // LEFT
+
+			if (rightAnalogMode == RIGHT_ANALOG_MODE_DPAD) {
+				filteredButtons |= rightToDpadBits;
+			} else if (rightAnalogMode == RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD) {
+				// Keep current physical D-Pad state, then add face->D-Pad mapping.
+				PsxButtons physicalDpadBits = filteredButtons & ((1 << 4) | (1 << 5) | (1 << 6) | (1 << 7));
+
+				// Move physical face buttons to D-Pad
+				bool faceTriangle = filteredButtons & (1 << 12);
+				bool faceCircle   = filteredButtons & (1 << 13);
+				bool faceCross    = filteredButtons & (1 << 14);
+				bool faceSquare   = filteredButtons & (1 << 15);
+
+				filteredButtons &= ~((1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) |
+				                     (1 << 12) | (1 << 13) | (1 << 14) | (1 << 15));
+
+				// Physical D-Pad remains active
+				filteredButtons |= physicalDpadBits;
+
+				// Face buttons also work as D-Pad
+				if (faceTriangle) filteredButtons |= (1 << 4); // TRI -> UP
+				if (faceCircle)   filteredButtons |= (1 << 5); // CIRCLE -> RIGHT
+				if (faceCross)    filteredButtons |= (1 << 6); // CROSS -> DOWN
+				if (faceSquare)   filteredButtons |= (1 << 7); // SQUARE -> LEFT
+
+				// Move right analog stick directions to face buttons
+				if (rightToDpadBits & (1 << 4)) filteredButtons |= (1 << 12); // UP -> TRI
+				if (rightToDpadBits & (1 << 5)) filteredButtons |= (1 << 13); // RIGHT -> CIRCLE
+				if (rightToDpadBits & (1 << 6)) filteredButtons |= (1 << 14); // DOWN -> CROSS
+				if (rightToDpadBits & (1 << 7)) filteredButtons |= (1 << 15); // LEFT -> SQUARE
+			}
 			dumpButtons (filteredButtons);
 
 			// Write to MCP23017: apply HOME button on HOME_BIT (active low)
@@ -430,16 +491,7 @@ void loop () {
 	int curPwr = digitalRead(POWER_LED);
 	if ( powerState != curPwr ) {
 		powerState = curPwr;
-
-		if ( powerState ) {
-			analogWrite(LED_R, 64);
-			analogWrite(LED_G, 0);
-			analogWrite(LED_B, 0);
-		} else {
-			analogWrite(LED_R, 0);
-			analogWrite(LED_G, 0);
-			analogWrite(LED_B, 64);
-		}
+		updateModeLed();
 
 		Serial.print (F("Power State: "));
 		Serial.println (curPwr);
