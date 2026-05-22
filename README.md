@@ -120,7 +120,9 @@ https://www.printables.com/model/1728475-psp-1000-consolizer-shell-case
 Please reconnect the HDMI cable or restart PSP.  
 - The analog stick may be unstable immediately after turning on the main power.  
 It will return to normal after a short period of use.  
-- The MOSFET in Q1 is susceptible to damage from heat and static electricity, so if the Video Scale changes unexpectedly, suspect a malfunction in Q1.
+- When you put your PSP to sleep, the video scale will revert to its default setting.
+After resuming playback, please change the scale again by pressing the START + Left keys.
+- The MOSFET in Q1 is susceptible to damage from heat and static electricity, so if the Video Scale changes unexpectedly, suspect a malfunction in Q1.  
 
 ## Acknowledgments
 
