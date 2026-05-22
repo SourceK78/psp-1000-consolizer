@@ -21,14 +21,40 @@ These parts assume the use of a [shell case](#shell-case) I designed.
 - [JST PH2.0 4Pin Connector and Wire](https://aliexpress.com/item/1005009087160808.html) * for LED module / PSP Analog Input
 - [FFC 10pin 0.5mm Pitch B-Type(Reverse Direction)](https://aliexpress.com/item/1005007653265454.html) * for PSP Digital Input
 - [FFC 24pin 0.5mm Pitch B-Type(Reverse Direction)](https://aliexpress.com/item/1005007653265454.html) * for PSP Digital Input
-- [Nylon Flat Washer M2x5x1mm](https://aliexpress.com/item/33021883302.html)
+- [Nylon Flat Washer M2x5x1mm](https://aliexpress.com/item/33021883302.html) * for UMD Drive / Lid Lock Parts
 - [Phillips head pan head screw M2x5mm](https://aliexpress.com/item/1005002364189187.html) * for PCB / LED Module
 - [Phillips head pan head screw M2x10mm](https://aliexpress.com/item/1005002364189187.html) * for Shell Case
 - PSP AC Adapter (Official versions are recommended)
 
+### Wiring
+
+Please refer to the picture and perform the following wiring work.
+
+1. PSP Power Cable * Need to cut the power cable inside the PSP.
+2. Main Power Switch(KCD11 Rocker Switch)
+3. PSP Power Switch(Tact Switch Module)
+4. RGB LED Module(KY-016 RGB LED Module)
+5. PSP Analog Input
+6. HDMI mod Sound * Refer to the HDMI mod manual.
+7. HDMI mod Video Scale * Need to remove the touch sensor component. **
+
+<img src="./assets/wiring.JPG" />
+
+** To change the video scale using START+Left, remove the tp223 and the nearby capacitor on the HDMI mod PCB and rewire it as shown in the picture.
+
+<img src="./assets/HDMI_mod_video_scale.JPG" />
+
+FFC should be installed so that the contacts face the PCB.  
+"HDMI female connector A4" is installed in bottom case by attaching the included parts to shell case.  
+"HDMI micro Male Connector D3" is inserted into HDMI mod and connected to "HDMI female connector A4" using "HDMI FFC".  
+"main PCB" and "HDMI mod" are secured using M2x5mm screws.  
+Shell case is secured using M2x10mm screws.  
+Secure the wires with Kapton tape or similar material to prevent them from interfering with the UMD drive's drive mechanism.  
+
 ### Upload Control Sketch
 
-Use the Arduino IDE to upload [psp-1000-control.ino](./psp-1000-control/) to the M5Stamp S3A.
+Use the Arduino IDE to upload [psp-1000-control.ino](./psp-1000-control/) to the M5Stamp S3A.  
+Please install the PsxNewLib library for sketch building.  
 
 ## PCB
 
@@ -62,9 +88,43 @@ You can download the STL file from the link below and create a dock case for you
 If you don't have a 3D printer, you can also commission JLC3DP or PCBWAY to make one for you.  
 https://www.printables.com/model/1728475-psp-1000-consolizer-shell-case  
 
+## Button Mapping
+
+	PS2 cross     	PSP cross
+	PS2 circle    	PSP circle
+	PS2 square    	PSP square
+	PS2 triangle  	PSP triangle
+	PS2 d-pad     	PSP d-pad
+	PS2 start     	PSP start
+	PS2 select    	PSP select
+	PS2 L1        	PSP L trigger
+	PS2 R1        	PSP R trigger
+	PS2 L2        	PSP analog left (for PS Archives)
+	PS2 R2        	PSP analog right (for PS Archives)
+	PS2 L2 + R2   	PSP analog up (for PS Archives)
+	PS2 L3        	PSP sound
+	PS2 R3        	PSP home
+	PS2 start+L2  	PSP volume down
+	PS2 start+R2  	PSP volume up
+	PS2 start+left 	PSP display(Brightness only)
+	PS2 start+right PSP home(Alternative)
+	PS2 start+R3  	cycle right stick mapping mode
+	PS2 right stick	mode, switch by start+R3
+	  mode 0 (LED Color Blue): right stick off (default)
+	  mode 1 (LED Color Breen): right stick PSP d-pad
+	  mode 2 (LED Color Magenta): right stick PSP face buttons, PS2 face buttons PSP d-pad
+
+## Notice
+
+- Immediately after turning on the main power, there may be no audio output from the HDMI port.  
+Please reconnect the HDMI cable or restart PSP.  
+- The analog stick may be unstable immediately after turning on the main power.  
+It will return to normal after a short period of use.  
+- The MOSFET in Q1 is susceptible to damage from heat and static electricity, so if the Video Scale changes unexpectedly, suspect a malfunction in Q1.
+
 ## Acknowledgments
 
-This project is made possible by HISPEEDIDO's HDMI mod and SukkoPera's PsxNewLib.  
+This project is made possible by HISPEEDIDO's HDMI mod and [SukkoPera's PsxNewLib](https://github.com/SukkoPera/PsxNewLib).  
 
 ## License
 
