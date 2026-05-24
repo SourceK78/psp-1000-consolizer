@@ -44,7 +44,7 @@ Please refer to the picture and perform the following wiring work.
 
 <img src="./assets/HDMI_mod_video_scale.JPG" />
 
-FFC should be installed so that the contacts face the PCB.  
+FFC should be installed so that the contacts face the PCB.(Only FFC connector for HDMI has its contacts facing upwards.)  
 "HDMI female connector A4" is installed in bottom case by attaching the included parts to shell case.  
 "HDMI micro Male Connector D3" is inserted into HDMI mod and connected to "HDMI female connector A4" using "HDMI FFC".  
 "main PCB" and "HDMI mod" are secured using M2x5mm screws.  
