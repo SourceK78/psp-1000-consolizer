@@ -58,7 +58,9 @@ Please install the PsxNewLib library for sketch building.
 
 ## PCB
 
-It is possible to create circuit boards using services such as JLCPCB and PCBWAY by utilizing the data in the [./pcb](./pcb) folder.  
+It is possible to create circuit boards using services such as JLCPCB and PCBWAY by utilizing the data in the [./pcb](./pcb) folder. 
+M5Stamp S3A must be soldered to the PCB using a 1.27mm pitch pin socket before installation.  
+If M5Stamp S3A is mounted directly to the PCB, the USB Type-C connector will become inaccessible.  
 
 ### BOM
 | **Reference** | **Part** | **Link** |
