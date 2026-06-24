@@ -66,8 +66,8 @@ If M5Stamp S3A is mounted directly to the PCB, the USB Type-C connector will bec
 | **Reference** | **Part** | **Link** |
 |---------|------|------|
 |U1 | M5Stamp S3A (1.27mm Pitch Header Pins) | - |
-|U2 | MCP23017 (SOIC-28) | - |
-|U3 | AD5142 (TSSOP-16) | - |
+|U2 | MCP23017-E/SO (SOIC-28) | - |
+|U3 | AD5142BRUZ10 (TSSOP-16) | - |
 |C1, C5, C7 | 10 uF capacitor (1206) | - |
 |C2, C3, C4, C6, C8 | 0.1 uF capacitor (1206) | - |
 |C9 | 1 uF capacitor (1206) | - |
