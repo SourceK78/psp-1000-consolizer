@@ -44,6 +44,12 @@ Please refer to the picture and perform the following wiring work.
 
 <img src="./assets/HDMI_mod_video_scale.JPG" />
 
+** Referencing the images, connect the analog input pads (G/X/V/Y) on the PSP motherboard to the "PSP_ANALOG" points on the Consolizer main PCB.  
+Connect to the audio signal lines (L/R/COM) of the HDMI mod.  
+Wiring the audio signal is a rather difficult task. If you find it too challenging, consider outputting the audio from the PSP's headphone jack instead.
+
+<img src="./assets/PSP_Analog_Sound.JPG" />
+
 FFC should be installed so that the contacts face the PCB.(Only FFC connector for HDMI has its contacts facing upwards.)  
 "HDMI female connector A4" is installed in bottom case by attaching the included parts to shell case.  
 "HDMI micro Male Connector D3" is inserted into HDMI mod and connected to "HDMI female connector A4" using "HDMI FFC".  
