@@ -61,6 +61,8 @@ Secure the wires with Kapton tape or similar material to prevent them from inter
 
 Use the Arduino IDE to upload [psp-1000-control.ino](./psp-1000-control/) to the M5Stamp S3A.  
 Please install the PsxNewLib library for sketch building.  
+As pointed out in [this issue](https://github.com/SukkoPera/PsxNewLib/issues/22), a conflict regarding the `poll` function is occurring between DigitalIO and PsxNewLib.  
+Applying a fix equivalent to [this Pull Request](https://github.com/SukkoPera/PsxNewLib/pull/38/changes) will make it possible to build.
 
 ## PCB
 
