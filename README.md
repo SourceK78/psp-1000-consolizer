@@ -62,7 +62,20 @@ Secure the wires with Kapton tape or similar material to prevent them from inter
 Use the Arduino IDE to upload [psp-1000-control.ino](./psp-1000-control/) to the M5Stamp S3A.  
 Please install the PsxNewLib library for sketch building.  
 As pointed out in [this issue](https://github.com/SukkoPera/PsxNewLib/issues/22), a conflict regarding the `poll` function is occurring between DigitalIO and PsxNewLib.  
-Applying a fix equivalent to [this Pull Request](https://github.com/SukkoPera/PsxNewLib/pull/38/changes) will make it possible to build.
+Applying a fix equivalent to [this Pull Request](https://github.com/SukkoPera/PsxNewLib/pull/38/changes) will make it possible to build.  
+
+#### Pop'n Music controller Mode
+
+When the dedicated Pop'n Music controller (RU014) is connected, it automatically switches to Pop'n Music controller mode, and the LED lights up white.  
+In this mode, the buttons are internally remapped as shown in the image below to control the PSP.  
+
+<img src="./assets/popcon_remap.JPG" />
+
+To align with the remapping, we recommend configuring the key settings for *PSP Pop'n Music* as shown in the image below.  
+
+<img src="./assets/popn-keyconfig-9.png" />
+<img src="./assets/popn-keyconfig-7.png" />
+<img src="./assets/popn-keyconfig-5.png" />
 
 ## PCB
 
