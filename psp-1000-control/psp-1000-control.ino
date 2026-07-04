@@ -140,13 +140,18 @@ enum RightAnalogMode : uint8_t {
 };
 
 RightAnalogMode rightAnalogMode = RIGHT_ANALOG_MODE_OFF;
+bool popnMusicControllerMode = false;
 
 void updateModeLed() {
 	// !powerState: mode-based color
 	// powerState : blue fixed
 	if (!powerState) {
-		// OFF: red, Mode2(D-Pad): green, Mode3(Face swap): magenta
-		if (rightAnalogMode == RIGHT_ANALOG_MODE_DPAD) {
+		// Pop'n Music: white, OFF: red, Mode2(D-Pad): green, Mode3(Face swap): magenta
+		if (popnMusicControllerMode) {
+			analogWrite(LED_R, 64);
+			analogWrite(LED_G, 64);
+			analogWrite(LED_B, 64);
+		} else if (rightAnalogMode == RIGHT_ANALOG_MODE_DPAD) {
 			analogWrite(LED_R, 0);
 			analogWrite(LED_G, 64);
 			analogWrite(LED_B, 0);
@@ -197,6 +202,26 @@ uint16_t remapButtons(uint16_t b) {
 	if (b & (1 <<  9)) out |= (1 << 13); // R2
 	if (b & (1 <<  8)) out |= (1 << 14); // L2
 	if (b & (1 <<  2)) out |= (1 << 15); // R3
+	return out;
+}
+
+// Pop'n Music controller remap for PSP:
+// PSX Up -> PSP Right, Circle -> Left, Cross -> Up, Square -> Down,
+// Triangle -> Triangle, R1 -> L, L1 -> Circle, R2 -> R, L2 -> Cross,
+// Start -> Start, Select -> Select. PSX Down/Left/Right are ignored.
+uint16_t remapPopnMusicButtons(uint16_t b) {
+	uint16_t out = 0;
+	if (b & (1 <<  4)) out |= (1 <<  0); // Up -> Right
+	if (b & (1 << 13)) out |= (1 <<  3); // Circle -> Left
+	if (b & (1 << 14)) out |= (1 <<  2); // Cross -> Up
+	if (b & (1 << 15)) out |= (1 <<  1); // Square -> Down
+	if (b & (1 << 12)) out |= (1 <<  5); // Triangle -> Triangle
+	if (b & (1 << 11)) out |= (1 <<  4); // R1 -> L
+	if (b & (1 << 10)) out |= (1 <<  6); // L1 -> Circle
+	if (b & (1 <<  9)) out |= (1 <<  7); // R2 -> R
+	if (b & (1 <<  8)) out |= (1 <<  9); // L2 -> Cross
+	if (b & (1 <<  3)) out |= (1 << 10); // Start -> Start
+	if (b & (1 <<  0)) out |= (1 << 11); // Select -> Select
 	return out;
 }
 
@@ -304,14 +329,15 @@ void setup () {
 
 	// Initialize
 	writeButtons(0xFFFF);
-	writePot(0, 255);
-	writePot(1, 255);
+	writePot(0, ANALOG_CENTER);
+	writePot(1, ANALOG_CENTER);
 
 	updateModeLed();
 }
 
 void loop () {
 	static byte slx, sly, srx, sry;
+	static bool forceLeftAnalogWrite = true;
 
 	if (!haveController) {
 		if (psx.begin ()) {
@@ -343,16 +369,23 @@ void loop () {
 			}
 
 			haveController = true;
+			popnMusicControllerMode = false;
+			rightAnalogMode = RIGHT_ANALOG_MODE_OFF;
+			updateModeLed();
 		}
 	} else {
 		if (!psx.read ()) {
 			Serial.println (F("Controller lost :("));
 			haveController = false;
+			popnMusicControllerMode = false;
+			rightAnalogMode = RIGHT_ANALOG_MODE_OFF;
+			updateModeLed();
 			writeButtons(0xFFFF);
-			writePot(0, 255);
-			writePot(1, 255);
+			writePot(0, ANALOG_CENTER);
+			writePot(1, ANALOG_CENTER);
 			digitalWrite(VIDEO_SCALE, LOW);
 			slx = sly = srx = sry = 255;  // Force analog re-report on reconnect
+			forceLeftAnalogWrite = true;
 		} else {
 			uint8_t rx, ry;
 			psx.getRightAnalog (rx, ry);
@@ -368,8 +401,22 @@ void loop () {
 			bool btnR3    = rawButtons & (1 << 2);  // R3
 			bool btnStart = rawButtons & (1 << 3);  // Start
 			bool btnRight = rawButtons & (1 << 5);  // Right
-			bool homePress         = btnStart && btnRight;  // START+RIGHT → HOME
-			bool modeToggleCombo   = btnStart && btnR3;     // START+R3 → mode toggle
+			bool btnDown  = rawButtons & (1 << 6);  // Down
+			bool btnLeft  = rawButtons & (1 << 7);  // Left
+			bool popnMusicControllerDetected = btnLeft && btnRight && btnDown;
+			bool homePress         = !popnMusicControllerMode && !popnMusicControllerDetected && btnStart && btnRight;  // START+RIGHT → HOME
+			bool modeToggleCombo   = !popnMusicControllerMode && !popnMusicControllerDetected && btnStart && btnR3;     // START+R3 → mode toggle
+
+			if (popnMusicControllerDetected && !popnMusicControllerMode) {
+				popnMusicControllerMode = true;
+				updateModeLed();
+				Serial.println (F("Pop'n Music controller mode enabled"));
+			} else if (!popnMusicControllerDetected && popnMusicControllerMode) {
+				popnMusicControllerMode = false;
+				rightAnalogMode = RIGHT_ANALOG_MODE_OFF;
+				updateModeLed();
+				Serial.println (F("Pop'n Music controller mode disabled"));
+			}
 
 			// Toggle mode on rising edge of START+R3:
 			// OFF -> Right analog: D-Pad -> Right analog: Face + Face: D-Pad -> OFF
@@ -382,10 +429,10 @@ void loop () {
 
 			// Build filtered buttons for MCP23017:
 			// L2/R2 are removed from default pass-through (handled specially below)
-			PsxButtons filteredButtons = rawButtons & ~((1 << 8) | (1 << 9));
+			PsxButtons filteredButtons = popnMusicControllerMode ? rawButtons : rawButtons & ~((1 << 8) | (1 << 9));
 
 			// Remove Start when used as modifier key (HOME, VOL+, VOL-, mode toggle)
-			if (homePress || modeToggleCombo || (btnStart && (btnL2 || btnR2))) {
+			if (homePress || modeToggleCombo || (!popnMusicControllerMode && btnStart && (btnL2 || btnR2))) {
 				filteredButtons &= ~(1 << 3);
 			}
 
@@ -400,8 +447,8 @@ void loop () {
 			}
 
 			// START+L2 → VOL- (restore L2 bit),  START+R2 → VOL+ (restore R2 bit)
-			if (btnStart && btnL2) filteredButtons |= (1 << 8);
-			if (btnStart && btnR2) filteredButtons |= (1 << 9);
+			if (!popnMusicControllerMode && btnStart && btnL2) filteredButtons |= (1 << 8);
+			if (!popnMusicControllerMode && btnStart && btnR2) filteredButtons |= (1 << 9);
 
 			// Apply right analog remap modes
 			// D-Pad bits: UP=4 RIGHT=5 DOWN=6 LEFT=7
@@ -412,9 +459,9 @@ void loop () {
 			if (ry > ANALOG_CENTER + ANALOG_DEADZONE) rightToDpadBits |= (1 << 6); // DOWN
 			if (rx < ANALOG_CENTER - ANALOG_DEADZONE) rightToDpadBits |= (1 << 7); // LEFT
 
-			if (rightAnalogMode == RIGHT_ANALOG_MODE_DPAD) {
+			if (!popnMusicControllerMode && rightAnalogMode == RIGHT_ANALOG_MODE_DPAD) {
 				filteredButtons |= rightToDpadBits;
-			} else if (rightAnalogMode == RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD) {
+			} else if (!popnMusicControllerMode && rightAnalogMode == RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD) {
 				// Keep current physical D-Pad state, then add face->D-Pad mapping.
 				PsxButtons physicalDpadBits = filteredButtons & ((1 << 4) | (1 << 5) | (1 << 6) | (1 << 7));
 
@@ -445,14 +492,15 @@ void loop () {
 			dumpButtons (filteredButtons);
 
 			// Write to MCP23017: apply HOME button on HOME_BIT (active low)
-			uint16_t mcpOutput = ~remapButtons (filteredButtons);
+			uint16_t mappedButtons = popnMusicControllerMode ? remapPopnMusicButtons (filteredButtons) : remapButtons (filteredButtons);
+			uint16_t mcpOutput = ~mappedButtons;
 			if (homePress) {
 				mcpOutput &= ~(1 << HOME_BIT);
 			}
 			writeButtons (mcpOutput);
 
 			// VIDEO_SCALE: HIGH only when both Start (bit 3) and Left (bit 7) are pressed
-			digitalWrite(VIDEO_SCALE, ((filteredButtons & (1 << 3)) && (filteredButtons & (1 << 7))) ? HIGH : LOW);
+			digitalWrite(VIDEO_SCALE, (!popnMusicControllerMode && (filteredButtons & (1 << 3)) && (filteredButtons & (1 << 7))) ? HIGH : LOW);
 
 			// Left analog stick:
 			// L2       → -X (left),   Y = center   (when Start not held)
@@ -463,9 +511,12 @@ void loop () {
 			psx.getLeftAnalog (lx, ly);
 
 			uint8_t outLx, outLy;
-			if (!btnStart && btnL2 && btnR2) {
+			if (popnMusicControllerMode) {
 				outLx = ANALOG_CENTER;
-				outLy = 0;            // -Y (push down)
+				outLy = ANALOG_CENTER;
+			} else if (!btnStart && btnL2 && btnR2) {
+				outLx = ANALOG_CENTER;
+				outLy = 0;            // -Y (push up)
 			} else if (!btnStart && btnL2) {
 				outLx = 0;              // -X (push left)
 				outLy = ANALOG_CENTER;
@@ -477,12 +528,13 @@ void loop () {
 				outLy = ly;
 			}
 
-			if (outLx != slx || outLy != sly) {
+			if (forceLeftAnalogWrite || outLx != slx || outLy != sly) {
 				dumpAnalog ("Left", outLx, outLy);
 				writePot(0, outLx);
 				writePot(1, outLy);
 				slx = outLx;
 				sly = outLy;
+				forceLeftAnalogWrite = false;
 			}
 		}
 	}
