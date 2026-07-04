@@ -208,20 +208,23 @@ uint16_t remapButtons(uint16_t b) {
 // Pop'n Music controller remap for PSP:
 // PSX Up -> PSP Right, Circle -> Left, Cross -> Up, Square -> Down,
 // Triangle -> Triangle, R1 -> L, L1 -> Circle, R2 -> R, L2 -> Cross,
-// Start -> Start, Select -> Select. PSX Down/Left/Right are ignored.
+// Start -> Start, Select -> Select, Select+L1 -> Square.
+// PSX Down/Left/Right are ignored.
 uint16_t remapPopnMusicButtons(uint16_t b) {
 	uint16_t out = 0;
+	bool selectL1Combo = (b & (1 << 0)) && (b & (1 << 10));
 	if (b & (1 <<  4)) out |= (1 <<  0); // Up -> Right
 	if (b & (1 << 13)) out |= (1 <<  3); // Circle -> Left
 	if (b & (1 << 14)) out |= (1 <<  2); // Cross -> Up
 	if (b & (1 << 15)) out |= (1 <<  1); // Square -> Down
 	if (b & (1 << 12)) out |= (1 <<  5); // Triangle -> Triangle
 	if (b & (1 << 11)) out |= (1 <<  4); // R1 -> L
-	if (b & (1 << 10)) out |= (1 <<  6); // L1 -> Circle
+	if (selectL1Combo) out |= (1 <<  8); // Select+L1 -> Square
+	else if (b & (1 << 10)) out |= (1 <<  6); // L1 -> Circle
 	if (b & (1 <<  9)) out |= (1 <<  7); // R2 -> R
 	if (b & (1 <<  8)) out |= (1 <<  9); // L2 -> Cross
 	if (b & (1 <<  3)) out |= (1 << 10); // Start -> Start
-	if (b & (1 <<  0)) out |= (1 << 11); // Select -> Select
+	if (!selectL1Combo && (b & (1 <<  0))) out |= (1 << 11); // Select -> Select
 	return out;
 }
 

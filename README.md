@@ -68,6 +68,8 @@ Applying a fix equivalent to [this Pull Request](https://github.com/SukkoPera/Ps
 
 When the dedicated Pop'n Music controller (RU014) is connected, it automatically switches to Pop'n Music controller mode, and the LED lights up white.  
 In this mode, the buttons are internally remapped as shown in the image below to control the PSP.  
+While the Select button is held down, the Circle button switches to the Square button.  
+This is primarily used during gameplay in "Party Mode".   
 
 <img src="./assets/popcon_remap.JPG" />
 
