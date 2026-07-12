@@ -37,9 +37,17 @@
 typedef const byte* PGM_BYTES_P;
 #define PSTR_TO_F(s) reinterpret_cast<const __FlashStringHelper *> (s)
 
-// Right analog stick center and deadzone settings
+// Right analog stick center and deadzone settings.
+// ANALOG_DEADZONE_MODE2 is for RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD
 const byte ANALOG_CENTER   = 128;
 const byte ANALOG_DEADZONE = 90;
+const byte ANALOG_DEADZONE_MODE2 = 24;
+
+// Debug logging
+const bool DEBUG_LOG = false;
+
+// Main loop pacing. Lower values reduce latency but poll the hardware more often.
+const byte LOOP_DELAY_MS = 1;
 
 // PSX controller (BitBang)
 const byte PIN_PS2_DAT = 6;
@@ -74,7 +82,7 @@ const byte LED_R     = 39;
 const byte LED_G     = 40;
 const byte LED_B     = 41;
 
-// MODE Select
+// Video scale mode select
 const byte VIDEO_SCALE = 14;
 
 int powerState = -1;
@@ -144,9 +152,12 @@ bool popnMusicControllerMode = false;
 
 void updateModeLed() {
 	// !powerState: mode-based color
-	// powerState : blue fixed
+	// powerState : red fixed
 	if (!powerState) {
-		// Pop'n Music: white, OFF: red, Mode2(D-Pad): green, Mode3(Face swap): magenta
+		// OFF: blue
+		// RIGHT_ANALOG_MODE_DPAD: green,
+		// RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD: magenta
+		// Pop'n Music: white
 		if (popnMusicControllerMode) {
 			analogWrite(LED_R, 64);
 			analogWrite(LED_G, 64);
@@ -254,6 +265,10 @@ byte psxButtonToIndex (PsxButtons psxButtons) {
 }
 
 void dumpButtons (PsxButtons psxButtons) {
+	if (!DEBUG_LOG) {
+		return;
+	}
+
 	static PsxButtons lastB = 0;
 
 	if (psxButtons != lastB) {
@@ -280,6 +295,10 @@ void dumpButtons (PsxButtons psxButtons) {
 }
 
 void dumpAnalog (const char *str, const byte x, const byte y) {
+	if (!DEBUG_LOG) {
+		return;
+	}
+
 	Serial.print (str);
 	Serial.print (F(" analog: x = "));
 	Serial.print (x);
@@ -289,10 +308,13 @@ void dumpAnalog (const char *str, const byte x, const byte y) {
 
 void setup () {
 	delay (300);
-	Serial.begin (115200);
-	Serial.println (F("Ready!"));
+	if (DEBUG_LOG) {
+		Serial.begin (115200);
+		Serial.println (F("Ready!"));
+	}
 
 	Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+	Wire.setClock(400000);
 
 	pinMode(PIN_SPI_SS, OUTPUT);
 	digitalWrite(PIN_SPI_SS, HIGH);  // CS Initial HIGH
@@ -344,30 +366,44 @@ void loop () {
 
 	if (!haveController) {
 		if (psx.begin ()) {
-			Serial.println (F("Controller found!"));
+			if (DEBUG_LOG) {
+				Serial.println (F("Controller found!"));
+			}
 			delay (300);
 			if (!psx.enterConfigMode ()) {
-				Serial.println (F("Cannot enter config mode"));
+				if (DEBUG_LOG) {
+					Serial.println (F("Cannot enter config mode"));
+				}
 			} else {
 				PsxControllerType ctype = psx.getControllerType ();
 				PGM_BYTES_P cname = reinterpret_cast<PGM_BYTES_P> (pgm_read_ptr (&(controllerTypeStrings[ctype < PSCTRL_MAX ? static_cast<byte> (ctype) : PSCTRL_MAX])));
-				Serial.print (F("Controller Type is: "));
-				Serial.println (PSTR_TO_F (cname));
+				if (DEBUG_LOG) {
+					Serial.print (F("Controller Type is: "));
+					Serial.println (PSTR_TO_F (cname));
+				}
 
 				if (!psx.enableAnalogSticks ()) {
-					Serial.println (F("Cannot enable analog sticks"));
+					if (DEBUG_LOG) {
+						Serial.println (F("Cannot enable analog sticks"));
+					}
 				}
 
 				if (!psx.enableAnalogButtons ()) {
-					Serial.println (F("Cannot enable analog buttons"));
+					if (DEBUG_LOG) {
+						Serial.println (F("Cannot enable analog buttons"));
+					}
 				}
 
 				if (!psx.enableRumble (false)) {
-					Serial.println (F("Cannot disable rumble"));
+					if (DEBUG_LOG) {
+						Serial.println (F("Cannot disable rumble"));
+					}
 				}
 
 				if (!psx.exitConfigMode ()) {
-					Serial.println (F("Cannot exit config mode"));
+					if (DEBUG_LOG) {
+						Serial.println (F("Cannot exit config mode"));
+					}
 				}
 			}
 
@@ -378,7 +414,9 @@ void loop () {
 		}
 	} else {
 		if (!psx.read ()) {
-			Serial.println (F("Controller lost :("));
+			if (DEBUG_LOG) {
+				Serial.println (F("Controller lost :("));
+			}
 			haveController = false;
 			popnMusicControllerMode = false;
 			rightAnalogMode = RIGHT_ANALOG_MODE_OFF;
@@ -413,16 +451,20 @@ void loop () {
 			if (popnMusicControllerDetected && !popnMusicControllerMode) {
 				popnMusicControllerMode = true;
 				updateModeLed();
-				Serial.println (F("Pop'n Music controller mode enabled"));
+				if (DEBUG_LOG) {
+					Serial.println (F("Pop'n Music controller mode enabled"));
+				}
 			} else if (!popnMusicControllerDetected && popnMusicControllerMode) {
 				popnMusicControllerMode = false;
 				rightAnalogMode = RIGHT_ANALOG_MODE_OFF;
 				updateModeLed();
-				Serial.println (F("Pop'n Music controller mode disabled"));
+				if (DEBUG_LOG) {
+					Serial.println (F("Pop'n Music controller mode disabled"));
+				}
 			}
 
-			// Toggle mode on rising edge of START+R3:
-			// OFF -> Right analog: D-Pad -> Right analog: Face + Face: D-Pad -> OFF
+			// Toggle RightAnalogMode on rising edge of START+R3:
+			// OFF -> RIGHT_ANALOG_MODE_DPAD -> RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD -> OFF
 			static bool lastModeToggle = false;
 			if (!powerState && modeToggleCombo && !lastModeToggle) {
 				rightAnalogMode = static_cast<RightAnalogMode>((rightAnalogMode + 1) % 3);
@@ -453,15 +495,17 @@ void loop () {
 			if (!popnMusicControllerMode && btnStart && btnL2) filteredButtons |= (1 << 8);
 			if (!popnMusicControllerMode && btnStart && btnR2) filteredButtons |= (1 << 9);
 
-			// Apply right analog remap modes
+			// Apply right analog remap modes.
+			// RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD uses the smaller enum-value-2 deadzone.
+			byte rightAnalogDeadzone = (rightAnalogMode == RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD) ? ANALOG_DEADZONE_MODE2 : ANALOG_DEADZONE;
 			// D-Pad bits: UP=4 RIGHT=5 DOWN=6 LEFT=7
-			// Face bits : TRI=12 CIRCLE=13 CROSS=14 SQUARE=15
 			PsxButtons rightToDpadBits = 0;
-			if (ry < ANALOG_CENTER - ANALOG_DEADZONE) rightToDpadBits |= (1 << 4); // UP
-			if (rx > ANALOG_CENTER + ANALOG_DEADZONE) rightToDpadBits |= (1 << 5); // RIGHT
-			if (ry > ANALOG_CENTER + ANALOG_DEADZONE) rightToDpadBits |= (1 << 6); // DOWN
-			if (rx < ANALOG_CENTER - ANALOG_DEADZONE) rightToDpadBits |= (1 << 7); // LEFT
+			if (ry < ANALOG_CENTER - rightAnalogDeadzone) rightToDpadBits |= (1 << 4); // UP
+			if (rx > ANALOG_CENTER + rightAnalogDeadzone) rightToDpadBits |= (1 << 5); // RIGHT
+			if (ry > ANALOG_CENTER + rightAnalogDeadzone) rightToDpadBits |= (1 << 6); // DOWN
+			if (rx < ANALOG_CENTER - rightAnalogDeadzone) rightToDpadBits |= (1 << 7); // LEFT
 
+			// Face bits : TRI=12 CIRCLE=13 CROSS=14 SQUARE=15
 			if (!popnMusicControllerMode && rightAnalogMode == RIGHT_ANALOG_MODE_DPAD) {
 				filteredButtons |= rightToDpadBits;
 			} else if (!popnMusicControllerMode && rightAnalogMode == RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD) {
@@ -548,9 +592,11 @@ void loop () {
 		powerState = curPwr;
 		updateModeLed();
 
-		Serial.print (F("Power State: "));
-		Serial.println (curPwr);
+		if (DEBUG_LOG) {
+			Serial.print (F("Power State: "));
+			Serial.println (curPwr);
+		}
 	}
 
-	delay (1000 / 60);
+	delay (LOOP_DELAY_MS);
 }
