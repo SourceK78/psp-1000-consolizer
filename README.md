@@ -64,21 +64,6 @@ Please install the PsxNewLib library for sketch building.
 As pointed out in [this issue](https://github.com/SukkoPera/PsxNewLib/issues/22), a conflict regarding the `poll` function is occurring between DigitalIO and PsxNewLib.  
 Applying a fix equivalent to [this Pull Request](https://github.com/SukkoPera/PsxNewLib/pull/38/changes) will make it possible to build.  
 
-#### Pop'n Music controller Mode
-
-When the dedicated Pop'n Music controller (RU014) is connected, it automatically switches to Pop'n Music controller mode, and the LED lights up white.  
-In this mode, the buttons are internally remapped as shown in the image below to control the PSP.  
-While the Select button is held down, the Circle button switches to the Square button.  
-This is primarily used during gameplay in "Party Mode".   
-
-<img src="./assets/popcon_remap.JPG" />
-
-To align with the remapping, we recommend configuring the key settings for *PSP Pop'n Music* as shown in the image below.  
-
-<img src="./assets/popn-keyconfig-9.png" />
-<img src="./assets/popn-keyconfig-7.png" />
-<img src="./assets/popn-keyconfig-5.png" />
-
 ## PCB
 
 It is possible to create circuit boards using services such as JLCPCB and PCBWAY by utilizing the data in the [./pcb](./pcb) folder.  
@@ -136,8 +121,37 @@ https://www.printables.com/model/1728475-psp-1000-consolizer-shell-case
 	PS2 start+R3  	cycle right stick mapping mode
 	PS2 right stick	mode, switch by start+R3
 	  mode 0 (LED Color Blue): right stick off (default)
-	  mode 1 (LED Color Breen): right stick PSP d-pad
+	  mode 1 (LED Color Green): right stick PSP d-pad
 	  mode 2 (LED Color Magenta): right stick PSP face buttons, PS2 face buttons PSP d-pad
+	  mode 3 (LED Color Cyan): Star Soldier mode, rotate D-pad and left analog 90 degrees counterclockwise
+
+### Star Soldier Mode
+
+Mode 3 is intended for PSP Star Soldier's vertical PSP play style.  
+D-pad directions and the left analog stick are rotated:
+
+	PS2 up   	PSP right
+	PS2 down 	PSP left
+	PS2 left 	PSP up
+	PS2 right	PSP down
+
+Other buttons keep the default mapping and can be configured in Star Soldier's
+own key configuration.
+
+### Pop'n Music controller Mode
+
+When the dedicated Pop'n Music controller (RU014) is connected, it automatically switches to Pop'n Music controller mode, and the LED lights up white.  
+In this mode, the buttons are internally remapped as shown in the image below to control the PSP.  
+While the Select button is held down, the Circle button switches to the Square button.  
+This is primarily used during gameplay in "Party Mode".   
+
+<img src="./assets/popcon_remap.JPG" />
+
+To align with the remapping, we recommend configuring the key settings for *PSP Pop'n Music* as shown in the image below.  
+
+<img src="./assets/popn-keyconfig-9.png" />
+<img src="./assets/popn-keyconfig-7.png" />
+<img src="./assets/popn-keyconfig-5.png" />
 
 ## Notice
 

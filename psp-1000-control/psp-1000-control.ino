@@ -141,10 +141,13 @@ PsxControllerBitBang<PIN_PS2_ATT, PIN_PS2_CMD, PIN_PS2_DAT, PIN_PS2_CLK> psx;
 
 boolean haveController = false;
 
+// START+R3 selectable controller modes.
+// The name is kept for compatibility, but some modes also affect D-Pad/left analog.
 enum RightAnalogMode : uint8_t {
 	RIGHT_ANALOG_MODE_OFF = 0,
 	RIGHT_ANALOG_MODE_DPAD = 1,
-	RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD = 2
+	RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD = 2,
+	RIGHT_ANALOG_MODE_STAR_SOLDIER = 3
 };
 
 RightAnalogMode rightAnalogMode = RIGHT_ANALOG_MODE_OFF;
@@ -157,6 +160,7 @@ void updateModeLed() {
 		// OFF: blue
 		// RIGHT_ANALOG_MODE_DPAD: green,
 		// RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD: magenta
+		// RIGHT_ANALOG_MODE_STAR_SOLDIER: cyan
 		// Pop'n Music: white
 		if (popnMusicControllerMode) {
 			analogWrite(LED_R, 64);
@@ -169,6 +173,10 @@ void updateModeLed() {
 		} else if (rightAnalogMode == RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD) {
 			analogWrite(LED_R, 64);
 			analogWrite(LED_G, 0);
+			analogWrite(LED_B, 64);
+		} else if (rightAnalogMode == RIGHT_ANALOG_MODE_STAR_SOLDIER) {
+			analogWrite(LED_R, 0);
+			analogWrite(LED_G, 64);
 			analogWrite(LED_B, 64);
 		} else {
 			analogWrite(LED_R, 0);
@@ -213,6 +221,17 @@ uint16_t remapButtons(uint16_t b) {
 	if (b & (1 <<  9)) out |= (1 << 13); // R2
 	if (b & (1 <<  8)) out |= (1 << 14); // L2
 	if (b & (1 <<  2)) out |= (1 << 15); // R3
+	return out;
+}
+
+// Rotate D-Pad 90 degrees counterclockwise for PSP Star Soldier vertical play:
+// PS2 Up -> PSP Right, Down -> Left, Left -> Up, Right -> Down.
+PsxButtons rotateStarSoldierDpad(PsxButtons b) {
+	PsxButtons out = b & ~((1 << 4) | (1 << 5) | (1 << 6) | (1 << 7));
+	if (b & (1 << 4)) out |= (1 << 5); // Up -> Right
+	if (b & (1 << 6)) out |= (1 << 7); // Down -> Left
+	if (b & (1 << 7)) out |= (1 << 4); // Left -> Up
+	if (b & (1 << 5)) out |= (1 << 6); // Right -> Down
 	return out;
 }
 
@@ -464,10 +483,11 @@ void loop () {
 			}
 
 			// Toggle RightAnalogMode on rising edge of START+R3:
-			// OFF -> RIGHT_ANALOG_MODE_DPAD -> RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD -> OFF
+			// OFF -> RIGHT_ANALOG_MODE_DPAD -> RIGHT_ANALOG_MODE_FACE_AND_FACE_TO_DPAD
+			//     -> RIGHT_ANALOG_MODE_STAR_SOLDIER -> OFF
 			static bool lastModeToggle = false;
 			if (!powerState && modeToggleCombo && !lastModeToggle) {
-				rightAnalogMode = static_cast<RightAnalogMode>((rightAnalogMode + 1) % 3);
+				rightAnalogMode = static_cast<RightAnalogMode>((rightAnalogMode + 1) % 4);
 				updateModeLed();
 			}
 			lastModeToggle = modeToggleCombo;
@@ -536,10 +556,14 @@ void loop () {
 				if (rightToDpadBits & (1 << 6)) filteredButtons |= (1 << 14); // DOWN -> CROSS
 				if (rightToDpadBits & (1 << 7)) filteredButtons |= (1 << 15); // LEFT -> SQUARE
 			}
-			dumpButtons (filteredButtons);
+			PsxButtons outputButtons = filteredButtons;
+			if (!popnMusicControllerMode && rightAnalogMode == RIGHT_ANALOG_MODE_STAR_SOLDIER) {
+				outputButtons = rotateStarSoldierDpad(outputButtons);
+			}
+			dumpButtons (outputButtons);
 
 			// Write to MCP23017: apply HOME button on HOME_BIT (active low)
-			uint16_t mappedButtons = popnMusicControllerMode ? remapPopnMusicButtons (filteredButtons) : remapButtons (filteredButtons);
+			uint16_t mappedButtons = popnMusicControllerMode ? remapPopnMusicButtons (outputButtons) : remapButtons (outputButtons);
 			uint16_t mcpOutput = ~mappedButtons;
 			if (homePress) {
 				mcpOutput &= ~(1 << HOME_BIT);
@@ -573,6 +597,13 @@ void loop () {
 			} else {
 				outLx = lx;
 				outLy = ly;
+			}
+
+			if (!popnMusicControllerMode && rightAnalogMode == RIGHT_ANALOG_MODE_STAR_SOLDIER) {
+				uint8_t rotatedLx = constrain(ANALOG_CENTER + ANALOG_CENTER - outLy, 0, 255);
+				uint8_t rotatedLy = outLx;
+				outLx = rotatedLx;
+				outLy = rotatedLy;
 			}
 
 			if (forceLeftAnalogWrite || outLx != slx || outLy != sly) {
